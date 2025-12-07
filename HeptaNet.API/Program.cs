@@ -1,26 +1,28 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using HeptaNet.Infrastructure.Database;
-using HeptaNet.Infrastructure.Repository;
-using HeptaNet.Domain.Base;
-using HeptaNet.Domain.Models;
+using HeptaNet.API.Middleware;
+using HeptaNet.API.Services;
 using HeptaNet.Application.Services;
-using HeptaNet.Application.Settings;
-using HeptaNet.Application.Services.Email;
-using HeptaNet.Application.Services.Otp;
-using HeptaNet.Infrastructure.Email;
-using HeptaNet.Application.Services.FileStorage;
 using HeptaNet.Application.Services.Audio;
-using HeptaNet.Infrastructure.FileStorage;
-using HeptaNet.Infrastructure.Audio;
+using HeptaNet.Application.Services.Email;
+using HeptaNet.Application.Services.FileStorage;
+using HeptaNet.Application.Services.Otp;
+using HeptaNet.Application.Settings;
+using HeptaNet.Domain.Base;
 using HeptaNet.Domain.Constants;
+using HeptaNet.Domain.Models;
+using HeptaNet.Infrastructure.Audio;
+using HeptaNet.Infrastructure.Database;
+using HeptaNet.Infrastructure.Email;
+using HeptaNet.Infrastructure.FileStorage;
+using HeptaNet.Infrastructure.Repository;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using HeptaNet.API.Services;
-using HeptaNet.API.Middleware;
+using System.Text;
+using Microsoft.Extensions.FileProviders;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
@@ -333,7 +335,19 @@ if (!app.Environment.IsDevelopment())
 }
 
 // Enable static files for serving uploaded files
-app.UseStaticFiles();
+//app.UseStaticFiles();
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+}
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
+
 
 // ⚠️ IMPORTANT: Ajouter CORS AVANT Authentication/Authorization
 app.UseCors("AllowFlutterWeb");
