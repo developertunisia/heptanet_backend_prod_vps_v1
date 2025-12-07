@@ -1,0 +1,37 @@
+@HeptaNet.API_HostAddress = http://localhost:5106
+
+### Test 1: Connexion avec email et mot de passe
+POST {{HeptaNet.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@hepta.net",
+  "password": "Admin123!",
+  "rememberMe": false
+}
+
+###
+
+### Test 2: Tester avec un utilisateur blacklisté (échec attendu)
+POST {{HeptaNet.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "blacklisted@hepta.net",
+  "password": "Test123!",
+  "rememberMe": false
+}
+
+###
+
+### Test 3: Mauvais mot de passe (échec attendu)
+POST {{HeptaNet.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@hepta.net",
+  "password": "wrongpassword",
+  "rememberMe": false
+}
+
+###
