@@ -118,6 +118,7 @@ public class ConversationsController : ControllerBase
     {
         try
         {
+            var userId = GetCurrentUserId();
             var conversation = await _conversationService.CreateGroupConversationAsync(request.GroupId);
             
             // Map to DTO to avoid circular references

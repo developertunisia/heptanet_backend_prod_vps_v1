@@ -1240,4 +1240,3 @@ Ces trois fichiers couvrent :
 
 Votre serveur VPS est maintenant configuré de manière sécurisée et prêt pour la production !
 
-

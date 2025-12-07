@@ -184,48 +184,26 @@ public class MessagesController : ControllerBase
         try
         {
             var userId = GetCurrentUserId();
-            var message = await _messageService.GetMessageByIdAsync(messageId);
+            var messageDto = await _messageService.GetMessageByIdAsync(messageId);
             
-            if (message == null)
+            if (messageDto == null)
             {
                 return NotFound(new { success = false, message = "Message not found" });
             }
             
             // Vérifier les permissions
-            var conversation = await _conversationService.GetConversationByIdAsync(message.ConversationId, userId);
+            var conversation = await _conversationService.GetConversationByIdAsync(messageDto.ConversationId, userId);
             if (conversation == null)
             {
                 return Forbid();
             }
             
-            // Construire l'URL de base
+            // Construire l'URL de base et mettre à jour les URLs complètes
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            
-            // Construire le DTO avec attachments et URLs complètes
-            var messageDto = new MessageWithAttachmentsDto
+            foreach (var attachment in messageDto.Attachments)
             {
-                MessageId = message.MessageId,
-                ConversationId = message.ConversationId,
-                SenderId = message.SenderId,
-                SenderName = message.Sender != null ? $"{message.Sender.FirstName} {message.Sender.LastName}" : "Unknown",
-                SenderAvatar = message.Sender?.AvatarUrl,
-                Type = message.Type,
-                Content = message.Content,
-                CreatedAt = message.CreatedAt,
-                EditedAt = message.EditedAt,
-                ReplyToMessageId = message.ReplyToMessageId,
-                Status = message.Status,
-                Attachments = message.Attachments.Select(a => new MessageAttachmentDto
-                {
-                    AttachmentId = a.AttachmentId,
-                    FileName = a.FileName,
-                    ContentType = a.ContentType,
-                    FileUrl = a.FileUrl,
-                    FullFileUrl = $"{baseUrl.TrimEnd('/')}{a.FileUrl}",
-                    FileSize = a.FileSize,
-                    DurationSeconds = a.DurationSeconds
-                }).ToList()
-            };
+                attachment.FullFileUrl = $"{baseUrl.TrimEnd('/')}{attachment.FileUrl}";
+            }
             
             return Ok(new
             {
@@ -251,16 +229,16 @@ public class MessagesController : ControllerBase
             var userId = GetCurrentUserId();
             
             // Récupérer le message avec ses attachments
-            var message = await _messageService.GetMessageByIdAsync(messageId);
+            var messageDto = await _messageService.GetMessageByIdAsync(messageId);
             
-            if (message == null)
+            if (messageDto == null)
             {
                 return NotFound(new { success = false, message = "Message not found" });
             }
             
             // Vérifier que l'utilisateur a accès à cette conversation
             var conversation = await _conversationService.GetConversationByIdAsync(
-                message.ConversationId, 
+                messageDto.ConversationId, 
                 userId);
             
             if (conversation == null)
@@ -269,13 +247,13 @@ public class MessagesController : ControllerBase
             }
             
             // Vérifier que c'est un message vocal
-            if (message.Type != MessageType.Audio)
+            if (messageDto.Type != MessageType.Audio)
             {
                 return BadRequest(new { success = false, message = "This message is not a voice message" });
             }
             
             // Récupérer l'attachment audio
-            var audioAttachment = message.Attachments
+            var audioAttachment = messageDto.Attachments
                 .FirstOrDefault(a => a.ContentType.StartsWith("audio/"));
             
             if (audioAttachment == null)

@@ -13,9 +13,8 @@ namespace HeptaNet.API.Services;
 
 public interface IMessageService
 {
-    Task<Message> SendMessageAsync(SendMessageDto dto, int senderId, IFormFile? audioFile = null);
-    Task<Message?> GetMessageByIdAsync(int messageId);
-    Task<IEnumerable<Message>> GetConversationMessagesAsync(int conversationId, int userId, int page = 1, int pageSize = 50);
+    Task<MessageResponseDto> SendMessageAsync(SendMessageDto dto, int senderId, IFormFile? audioFile = null);
+    Task<MessageWithAttachmentsDto?> GetMessageByIdAsync(int messageId);
     Task<IEnumerable<MessageWithAttachmentsDto>> GetConversationMessagesWithAttachmentsAsync(int conversationId, int userId, string baseUrl, int page = 1, int pageSize = 50);
     Task MarkAsReadAsync(int messageId, int userId);
     Task MarkConversationAsReadAsync(int conversationId, int userId);
@@ -48,7 +47,7 @@ public class MessageService : IMessageService
         _environment = environment;
     }
     
-    public async Task<Message> SendMessageAsync(SendMessageDto dto, int senderId, IFormFile? audioFile = null)
+    public async Task<MessageResponseDto> SendMessageAsync(SendMessageDto dto, int senderId, IFormFile? audioFile = null)
     {
         // Create the message
         var message = new Message
@@ -129,15 +128,22 @@ public class MessageService : IMessageService
         
         await _context.SaveChangesAsync();
         
-        // Load sender information and attachments for the notification
+        // Load sender information and related data for DTOs
         var sender = await _context.Users.FindAsync(senderId);
+        var receiver = dto.ReceiverId.HasValue 
+            ? await _context.Users.FindAsync(dto.ReceiverId.Value) 
+            : null;
+        var group = dto.GroupId.HasValue 
+            ? await _context.Groups.FindAsync(dto.GroupId.Value) 
+            : null;
         
         // Load attachments
         var attachments = await _context.MessageAttachments
             .Where(a => a.MessageId == message.MessageId)
             .ToListAsync();
         
-        var messageDto = new MessageReceivedDto
+        // Create DTO for SignalR notification
+        var signalRDto = new MessageReceivedDto
         {
             MessageId = message.MessageId,
             ConversationId = message.ConversationId,
@@ -197,24 +203,43 @@ public class MessageService : IMessageService
         };
     }
     
-    public async Task<MessageResponseDto?> GetMessageByIdAsync(int messageId)
+    public async Task<MessageWithAttachmentsDto?> GetMessageByIdAsync(int messageId)
     {
-        return await _context.Messages
+        var message = await _context.Messages
             .Where(m => m.MessageId == messageId)
-            .Select(m => new MessageResponseDto
-            {
-                MessageId = m.MessageId,
-                SenderId = m.SenderId,
-                SenderName = m.Sender != null ? $"{m.Sender.FirstName} {m.Sender.LastName}" : "Unknown",
-                ReceiverId = m.ReceiverId,
-                ReceiverName = m.Receiver != null ? $"{m.Receiver.FirstName} {m.Receiver.LastName}" : null,
-                GroupId = m.GroupId,
-                GroupName = m.Group != null ? m.Group.Name : null,
-                Content = m.Content,
-                CreatedAt = m.CreatedAt,
-                Status = m.Status
-            })
+            .Include(m => m.Sender)
+            .Include(m => m.Receiver)
+            .Include(m => m.Group)
+            .Include(m => m.Attachments)
             .FirstOrDefaultAsync();
+        
+        if (message == null)
+            return null;
+        
+        return new MessageWithAttachmentsDto
+        {
+            MessageId = message.MessageId,
+            ConversationId = message.ConversationId,
+            SenderId = message.SenderId,
+            SenderName = message.Sender != null ? $"{message.Sender.FirstName} {message.Sender.LastName}" : "Unknown",
+            SenderAvatar = message.Sender?.AvatarUrl,
+            Type = message.Type,
+            Content = message.Content,
+            CreatedAt = message.CreatedAt,
+            EditedAt = message.EditedAt,
+            ReplyToMessageId = message.ReplyToMessageId,
+            Status = message.Status,
+            Attachments = message.Attachments.Select(a => new MessageAttachmentDto
+            {
+                AttachmentId = a.AttachmentId,
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                FileUrl = a.FileUrl,
+                FullFileUrl = a.FileUrl, // Will be updated with full URL in controller
+                FileSize = a.FileSize,
+                DurationSeconds = a.DurationSeconds
+            }).ToList()
+        };
     }
     
     public async Task<IEnumerable<MessageResponseDto>> GetConversationMessagesAsync(

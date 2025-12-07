@@ -1516,4 +1516,3 @@ sudo netstat -tulpn | grep LISTEN
 
 **📌 Suite dans le fichier suivant : `02-Deploiement-et-CICD.md`**
 
-
