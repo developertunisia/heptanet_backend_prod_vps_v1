@@ -61,9 +61,12 @@ builder.Services.AddCors(options =>
                         return true;
                 }
 
+                // Permet les applications mobiles / desktop (origin peut être null)
+                if (string.IsNullOrEmpty(origin)) return true;
+
                 // Pour la production, listez vos origines spécifiques
                 string[] allowedOrigins = {
-                    "https://yourdomain.com",
+                  "http://51.83.72.29",     
                     "https://www.yourdomain.com"
                 };
                 return allowedOrigins.Contains(origin);
