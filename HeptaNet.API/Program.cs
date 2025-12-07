@@ -279,7 +279,9 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
-    {
+    {   // 🔥 Exécuter automatiquement les migrations au démarrage du container
+        var dbContext = services.GetRequiredService<MyAppContext>();
+        dbContext.Database.Migrate();
         await HeptaNet.Infrastructure.Database.DataSeeder.SeedRolesAsync(services);
         await HeptaNet.Infrastructure.Database.DataSeeder.SeedSuperAdminAsync(services);
     }
