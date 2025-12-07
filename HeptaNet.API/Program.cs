@@ -278,19 +278,46 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+
     try
-    {   // 🔥 Exécuter automatiquement les migrations au démarrage du container
+    {
         var dbContext = services.GetRequiredService<MyAppContext>();
-        dbContext.Database.Migrate();
+
+        var maxRetries = 10;
+        var delay = TimeSpan.FromSeconds(5);
+
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                Console.WriteLine("⏳ Applying migrations...");
+                dbContext.Database.Migrate();
+                Console.WriteLine("✅ Migrations applied successfully.");
+                break;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Migration failed: {ex.Message}");
+
+                if (i == maxRetries - 1)
+                    throw;
+
+                Console.WriteLine("🔄 Retrying in 5 seconds...");
+                await Task.Delay(delay);
+            }
+        }
+
+        // SEEDING
         await HeptaNet.Infrastructure.Database.DataSeeder.SeedRolesAsync(services);
         await HeptaNet.Infrastructure.Database.DataSeeder.SeedSuperAdminAsync(services);
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Une erreur s'est produite lors du seeding des rôles");
+        logger.LogError(ex, "Erreur lors de la migration ou du seeding.");
     }
 }
+
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
