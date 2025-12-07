@@ -61,7 +61,10 @@ public class LocalFileStorageService : IFileStorageService
     {
         try
         {
-            var filePath = fileUrl.Replace("/uploads/", "").Replace("/", "\\");
+            //var filePath = fileUrl.Replace("/uploads/", "").Replace("/", "\\"); // separator for windows 
+            // 1. Enlever le préfixe URL
+            string relativePath = fileUrl.Replace("/uploads/", "");
+            string filePath = Path.Combine("uploads", Path.Combine(relativePath.Split('/')));
             var fullPath = Path.Combine(_basePath, filePath);
             
             if (File.Exists(fullPath))
@@ -85,7 +88,11 @@ public class LocalFileStorageService : IFileStorageService
 
     public async Task<FileInfo> GetFileInfoAsync(string fileUrl)
     {
-        var filePath = fileUrl.Replace("/uploads/", "").Replace("/", "\\");
+        // var filePath = fileUrl.Replace("/uploads/", "").Replace("/", "\\"); //for windows 
+        var filePath = fileUrl
+                .Replace("/uploads/", "")
+                .Replace("/", Path.DirectorySeparatorChar.ToString());
+
         var fullPath = Path.Combine(_basePath, filePath);
         
         if (!File.Exists(fullPath))
