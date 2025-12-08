@@ -1,9 +1,9 @@
-using HeptaNet.Application.Services.FileStorage;
+﻿using HeptaNet.Application.Services.FileStorage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using FileInfo = HeptaNet.Application.Services.FileStorage.FileInfo;
-
+using System;  // ✅ AJOUTER
 namespace HeptaNet.Infrastructure.FileStorage;
 
 public class LocalFileStorageService : IFileStorageService
@@ -13,17 +13,35 @@ public class LocalFileStorageService : IFileStorageService
     private readonly string _basePath;
 
     public LocalFileStorageService(
-        IWebHostEnvironment environment,
-        ILogger<LocalFileStorageService> logger)
+            IWebHostEnvironment environment,
+            ILogger<LocalFileStorageService> logger)
     {
         _environment = environment;
         _logger = logger;
-        _basePath = Path.Combine(_environment.WebRootPath ?? _environment.ContentRootPath, "uploads");
-        
+
+        // ✅ FORCER le chemin vers le volume monté en production
+        var isProduction = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production";
+
+        if (isProduction)
+        {
+            // En production Docker, utiliser toujours /app/uploads (volume monté)
+            _basePath = "/app/uploads";
+            _logger.LogInformation("Production mode: Using /app/uploads for file storage");
+        }
+        else
+        {
+            // En développement, utiliser le chemin relatif
+            _basePath = Path.Combine(_environment.WebRootPath ?? _environment.ContentRootPath, "uploads");
+            _logger.LogInformation($"Development mode: Using {_basePath} for file storage");
+        }
+
         if (!Directory.Exists(_basePath))
         {
             Directory.CreateDirectory(_basePath);
+            _logger.LogInformation($"Created directory: {_basePath}");
         }
+
+        _logger.LogInformation($"File storage initialized at: {_basePath}");
     }
 
     public async Task<string> SaveFileAsync(IFormFile file, string folder, int userId)
@@ -62,7 +80,7 @@ public class LocalFileStorageService : IFileStorageService
         try
         {
             //var filePath = fileUrl.Replace("/uploads/", "").Replace("/", "\\"); // separator for windows 
-            // 1. Enlever le pr�fixe URL
+            // 1. Enlever le préfixe URL
             string relativePath = fileUrl.Replace("/uploads/", "");
             string filePath = Path.Combine("uploads", Path.Combine(relativePath.Split('/')));
             var fullPath = Path.Combine(_basePath, filePath);
