@@ -18,6 +18,7 @@ public interface IConversationService
     Task UnpinConversationAsync(int conversationId, int userId);
     Task MuteConversationAsync(int conversationId, int userId);
     Task UnmuteConversationAsync(int conversationId, int userId);
+    Task DeleteConversationAsync(int conversationId, int userId);
 }
 
 public class ConversationService : IConversationService
@@ -290,6 +291,23 @@ public class ConversationService : IConversationService
             participant.LastActivityAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
+    }
+    
+    public async Task DeleteConversationAsync(int conversationId, int userId)
+    {
+        var participant = await _context.ConversationParticipants
+            .FirstOrDefaultAsync(cp => cp.ConversationId == conversationId && cp.UserId == userId);
+        
+        if (participant == null)
+        {
+            throw new InvalidOperationException("Conversation not found or access denied");
+        }
+        
+        // Soft delete - set DeletedAt timestamp
+        participant.DeletedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        
+        _logger.LogInformation($"User {userId} deleted conversation {conversationId}");
     }
     
     private string GetConversationName(Conversation conversation, int currentUserId)

@@ -282,6 +282,34 @@ public class ConversationsController : ControllerBase
             return StatusCode(500, new { success = false, message = "Failed to unmute conversation" });
         }
     }
+    
+    /// <summary>
+    /// Delete a conversation (soft delete - only for current user)
+    /// </summary>
+    [HttpDelete("{conversationId}")]
+    public async Task<IActionResult> DeleteConversation(int conversationId)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            await _conversationService.DeleteConversationAsync(conversationId, userId);
+            
+            return Ok(new
+            {
+                success = true,
+                message = "Conversation deleted successfully"
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting conversation");
+            return StatusCode(500, new { success = false, message = "Failed to delete conversation" });
+        }
+    }
 }
 
 
