@@ -20,13 +20,22 @@ public class LocalFileStorageService : IFileStorageService
         _logger = logger;
 
         // ✅ FORCER le chemin vers le volume monté en production
-        var isProduction = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production";
+        // Détection robuste de l'environnement de production
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        var isProduction = !string.IsNullOrEmpty(env) && 
+                         (env.Equals("Production", StringComparison.OrdinalIgnoreCase) ||
+                          env.Equals("Prod", StringComparison.OrdinalIgnoreCase));
+        
+        // Vérifier aussi si on est dans Docker (fichier /.dockerenv existe)
+        var isDocker = File.Exists("/.dockerenv");
+        
+        _logger.LogInformation($"Environment: {env ?? "null"}, IsProduction: {isProduction}, IsDocker: {isDocker}");
 
-        if (isProduction)
+        if (isProduction || isDocker)
         {
             // En production Docker, utiliser toujours /app/uploads (volume monté)
             _basePath = "/app/uploads";
-            _logger.LogInformation("Production mode: Using /app/uploads for file storage");
+            _logger.LogInformation("Production/Docker mode: Using /app/uploads for file storage");
         }
         else
         {

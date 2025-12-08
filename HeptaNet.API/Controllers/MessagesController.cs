@@ -264,18 +264,26 @@ public class MessagesController : ControllerBase
             
             // Construire le chemin complet du fichier
             // Utiliser la même logique que LocalFileStorageService pour la cohérence
-            var isProduction = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production";
-            string basePath;
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            var isProduction = !string.IsNullOrEmpty(env) && 
+                             (env.Equals("Production", StringComparison.OrdinalIgnoreCase) ||
+                              env.Equals("Prod", StringComparison.OrdinalIgnoreCase));
             
-            if (isProduction)
+            // Vérifier aussi si on est dans Docker (fichier /.dockerenv existe)
+            var isDocker = System.IO.File.Exists("/.dockerenv");
+            
+            string basePath;
+            if (isProduction || isDocker)
             {
                 // En production Docker, utiliser toujours /app/uploads (volume monté)
                 basePath = "/app/uploads";
+                _logger.LogInformation("Production/Docker mode: Using /app/uploads for file retrieval");
             }
             else
             {
                 // En développement, utiliser le chemin relatif
                 basePath = Path.Combine(_environment.WebRootPath ?? _environment.ContentRootPath, "uploads");
+                _logger.LogInformation($"Development mode: Using {basePath} for file retrieval");
             }
             
             // Enlever le préfixe /uploads/ et construire le chemin relatif
