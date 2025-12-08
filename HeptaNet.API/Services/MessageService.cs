@@ -286,30 +286,81 @@ public class MessageService : IMessageService
             .Include(m => m.ReplyToMessage)
             .ToListAsync();
         
-        return messages.Select(m => new MessageWithAttachmentsDto
+        var result = new List<MessageWithAttachmentsDto>();
+        
+        foreach (var m in messages)
         {
-            MessageId = m.MessageId,
-            ConversationId = m.ConversationId,
-            SenderId = m.SenderId,
-            SenderName = m.Sender != null ? $"{m.Sender.FirstName} {m.Sender.LastName}" : "Unknown",
-            SenderAvatar = m.Sender?.AvatarUrl,
-            Type = m.Type,
-            Content = m.Content,
-            CreatedAt = m.CreatedAt,
-            EditedAt = m.EditedAt,
-            ReplyToMessageId = m.ReplyToMessageId,
-            Status = m.Status,
-            Attachments = m.Attachments.Select(a => new MessageAttachmentDto
+            var attachments = new List<MessageAttachmentDto>();
+            
+            foreach (var a in m.Attachments)
             {
-                AttachmentId = a.AttachmentId,
-                FileName = a.FileName,
-                ContentType = a.ContentType,
-                FileUrl = a.FileUrl,
-                FullFileUrl = $"{baseUrl.TrimEnd('/')}{a.FileUrl}", // URL complète pour accès direct
-                FileSize = a.FileSize,
-                DurationSeconds = a.DurationSeconds
-            }).ToList()
-        });
+                var durationSeconds = a.DurationSeconds;
+                
+                // Si la durée n'est pas disponible et que c'est un fichier audio, essayer de la calculer
+                if (!durationSeconds.HasValue && a.ContentType.StartsWith("audio/"))
+                {
+                    try
+                    {
+                        _logger.LogInformation($"Calculating duration for attachment {a.AttachmentId} from file: {a.FileUrl}");
+                        var calculatedDuration = await _audioMetadataService.GetAudioDurationFromFilePathAsync(a.FileUrl);
+                        
+                        if (calculatedDuration.HasValue && calculatedDuration.Value > 0)
+                        {
+                            durationSeconds = calculatedDuration;
+                            
+                            // Mettre à jour la base de données pour éviter de recalculer à chaque fois
+                            a.DurationSeconds = calculatedDuration;
+                            _context.MessageAttachments.Update(a);
+                            
+                            _logger.LogInformation($"Duration calculated and saved: {calculatedDuration} seconds for attachment {a.AttachmentId}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Could not calculate duration for attachment {a.AttachmentId}");
+                    }
+                }
+                
+                attachments.Add(new MessageAttachmentDto
+                {
+                    AttachmentId = a.AttachmentId,
+                    FileName = a.FileName,
+                    ContentType = a.ContentType,
+                    FileUrl = a.FileUrl,
+                    FullFileUrl = $"{baseUrl.TrimEnd('/')}{a.FileUrl}", // URL complète pour accès direct
+                    FileSize = a.FileSize,
+                    DurationSeconds = durationSeconds
+                });
+            }
+            
+            result.Add(new MessageWithAttachmentsDto
+            {
+                MessageId = m.MessageId,
+                ConversationId = m.ConversationId,
+                SenderId = m.SenderId,
+                SenderName = m.Sender != null ? $"{m.Sender.FirstName} {m.Sender.LastName}" : "Unknown",
+                SenderAvatar = m.Sender?.AvatarUrl,
+                Type = m.Type,
+                Content = m.Content,
+                CreatedAt = m.CreatedAt,
+                EditedAt = m.EditedAt,
+                ReplyToMessageId = m.ReplyToMessageId,
+                Status = m.Status,
+                Attachments = attachments
+            });
+        }
+        
+        // Sauvegarder les durées calculées en base de données
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not save calculated durations to database");
+        }
+        
+        return result;
     }
     
     public async Task MarkAsReadAsync(int messageId, int userId)
