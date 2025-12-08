@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Hosting;
+using System;
 using System.Security.Claims;
 using HeptaNet.API.Services;
 using HeptaNet.API.Requests;
@@ -262,15 +263,26 @@ public class MessagesController : ControllerBase
             }
             
             // Construire le chemin complet du fichier
-            // Enlever le préfixe /uploads/ et convertir les slashes en séparateurs de chemin
-            var filePath = audioAttachment.FileUrl
-                .Replace("/uploads/", "", StringComparison.OrdinalIgnoreCase)
-                .Replace('/', Path.DirectorySeparatorChar);
+            // Utiliser la même logique que LocalFileStorageService pour la cohérence
+            var isProduction = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production";
+            string basePath;
             
-            var webRootPath = Path.Combine(
-                _environment.WebRootPath ?? _environment.ContentRootPath, 
-                "uploads", 
-                filePath);
+            if (isProduction)
+            {
+                // En production Docker, utiliser toujours /app/uploads (volume monté)
+                basePath = "/app/uploads";
+            }
+            else
+            {
+                // En développement, utiliser le chemin relatif
+                basePath = Path.Combine(_environment.WebRootPath ?? _environment.ContentRootPath, "uploads");
+            }
+            
+            // Enlever le préfixe /uploads/ et construire le chemin relatif
+            var relativePath = audioAttachment.FileUrl
+                .Replace("/uploads/", "", StringComparison.OrdinalIgnoreCase);
+            var safePath = Path.Combine(relativePath.Split('/'));
+            var webRootPath = Path.Combine(basePath, safePath);
             
             // Vérifier que le fichier existe
             if (!System.IO.File.Exists(webRootPath))

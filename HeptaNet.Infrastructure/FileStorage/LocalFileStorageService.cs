@@ -82,8 +82,8 @@ public class LocalFileStorageService : IFileStorageService
             //var filePath = fileUrl.Replace("/uploads/", "").Replace("/", "\\"); // separator for windows 
             // 1. Enlever le préfixe URL
             string relativePath = fileUrl.Replace("/uploads/", "");
-            string filePath = Path.Combine("uploads", Path.Combine(relativePath.Split('/')));
-            var fullPath = Path.Combine(_basePath, filePath);
+            var safePath = Path.Combine(relativePath.Split('/'));
+            var fullPath = Path.Combine(_basePath, safePath);
             
             if (File.Exists(fullPath))
             {
