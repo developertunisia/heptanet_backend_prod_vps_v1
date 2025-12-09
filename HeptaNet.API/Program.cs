@@ -22,7 +22,6 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.Extensions.FileProviders;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
@@ -336,7 +335,28 @@ if (!app.Environment.IsDevelopment())
 
 // Enable static files for serving uploaded files
 //app.UseStaticFiles();
-var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+string uploadsPath;
+var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+var isProduction = !string.IsNullOrEmpty(env) && 
+                 (env.Equals("Production", StringComparison.OrdinalIgnoreCase) ||
+                  env.Equals("Prod", StringComparison.OrdinalIgnoreCase));
+var isDocker = System.IO.File.Exists("/.dockerenv");
+
+if (isProduction || isDocker)
+{
+    // En production Docker, utiliser le chemin du volume monté
+    uploadsPath = "/app/HeptaNet.API/uploads";
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Production/Docker mode: Using /app/HeptaNet.API/uploads for static files");
+}
+else
+{
+    // En développement, utiliser le chemin relatif
+    uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation($"Development mode: Using {uploadsPath} for static files");
+}
+
 if (!Directory.Exists(uploadsPath))
 {
     Directory.CreateDirectory(uploadsPath);

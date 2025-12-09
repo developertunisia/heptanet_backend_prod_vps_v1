@@ -65,13 +65,13 @@ public class AudioMetadataService : IAudioMetadataService
             
             string physicalPath;
             
-            // Vérifier si on est en production Docker (chemin /app/uploads)
-            if (_environment.IsProduction() && Directory.Exists("/app/uploads"))
+            // Vérifier si on est en production Docker (chemin /app/HeptaNet.API/uploads)
+            if (_environment.IsProduction() && Directory.Exists("/app/HeptaNet.API/uploads"))
             {
-                // En production Docker, utiliser toujours /app/uploads (volume monté)
+                // En production Docker, utiliser le chemin du volume monté
                 var relativePath = filePath.Replace("/uploads/", "", StringComparison.OrdinalIgnoreCase);
                 var safePath = Path.Combine(relativePath.Split('/'));
-                physicalPath = Path.Combine("/app/uploads", safePath);
+                physicalPath = Path.Combine("/app/HeptaNet.API/uploads", safePath);
                 _logger.LogInformation($"Production/Docker mode: Using {physicalPath} for duration calculation");
             }
             else

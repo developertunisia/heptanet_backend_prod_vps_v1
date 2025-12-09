@@ -33,9 +33,9 @@ public class LocalFileStorageService : IFileStorageService
 
         if (isProduction || isDocker)
         {
-            // En production Docker, utiliser toujours /app/uploads (volume monté)
-            _basePath = "/app/uploads";
-            _logger.LogInformation("Production/Docker mode: Using /app/uploads for file storage");
+            // En production Docker, utiliser le chemin du volume monté
+            _basePath = "/app/HeptaNet.API/uploads";
+            _logger.LogInformation("Production/Docker mode: Using /app/HeptaNet.API/uploads for file storage");
         }
         else
         {
