@@ -19,9 +19,9 @@ public class OtpController : ControllerBase
     [HttpPost("send")]
     public async Task<ActionResult<SendOtpResponseDto>> Send([FromBody] SendOtpRequestDto dto, CancellationToken ct)
     {
-        var check = await _authorized.CheckEmailExistsAsync(new CheckEmailExistsRequest { Email = dto.Email });
-        if (check is null || !check.Exists)
-            return BadRequest(new SendOtpResponseDto { Status = "error", Message = "Email non autorisé. Cet email n'est pas dans la liste des emails autorisés." });
+       // var check = await _authorized.CheckEmailExistsAsync(new CheckEmailExistsRequest { Email = dto.Email });
+       // if (check is null || !check.Exists)
+           // return BadRequest(new SendOtpResponseDto { Status = "error", Message = "Email non autorisé. Cet email n'est pas dans la liste des emails autorisés." });
 
         var res = await _otp.SendAsync(dto.Email, dto.Purpose ?? "register", ct);
         return Ok(new SendOtpResponseDto
